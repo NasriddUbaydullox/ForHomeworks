@@ -1,0 +1,268 @@
+create schema auth;
+
+create type status as enum ('customer' , 'merchant');
+
+create table auth.user_table(
+	user_id int primary key generated always as identity,
+	name varchar(100),
+	email varchar(100) unique,
+	password_hash varchar(100) ,
+	phone_number int unique,
+	role status not null,
+	created_at Date ,
+	updateed_at Date
+);
+
+create table auth.Roles(
+	role_id int Primary key generated always as identity,
+	role_name varchar(100) unique not null
+);
+
+Create table auth.UserRoles(
+	user_role_id int Primary key generated always as identity,
+	user_id int ,
+	role_id int,
+	foreign key (user_id) references auth.user_table(user_id),
+	foreign key (role_id) references auth.Roles(role_id)
+);
+
+create type pay_status as enum('card' , 'wallet' , 'crypto' , 'bank_transfer');
+
+Create table auth.pay(
+	payment_method_id int primary key generated always as identity,
+	user_id int,
+	foreign key (user_id) references auth.user_table(user_id),
+	type pay_status not null,
+	created_at Date,
+	updated_at Date,
+	detailts JSONB not null
+);
+
+create type trans_status as enum('pending' , 'completed' , 'failed' , 'refunded');
+
+create table auth.transac(
+	transaction_id int primary key generated always as identity,
+	user_id int,
+	foreign key (user_id) references auth.user_table(user_id),
+	amount int not null,
+	currency int check (currency between 100 and 999),
+	status trans_status not null,
+	payment_method_id int,
+	foreign key (payment_method_id) references auth.pay(payment_method_id),
+	description varchar(150) not null,
+	created_at Date,
+	updated_at Date
+);
+
+create type invoice_status as enum ('paid' , 'unpaid' , 'overdue');
+
+create table auth.Invoices(
+	invoice_id int primary key generated always as identity,
+	transaction_id int,
+	foreign key (transaction_id) references auth.transac(transaction_id),
+	business_id int,
+	foreign key (business_id) references auth.user_table(user_id ),
+	customer_id int,
+	foreign key (customer_id) references auth.user_table(user_id),
+	amount_due int not null,
+	due_date Date not null, 
+	status invoice_status not null,
+	created_at Date not null,
+	updated_at Date not null
+);
+
+create type status_sub as enum ('daily' , 'weekly' , 'monthly' , 'yearly');
+
+Create table auth.Sub (
+	subscription_id int primary key generated always as identity,
+	user_id int,
+	foreign key (user_id) references auth.user_table(user_id),
+	plan_name varchar(100) not null unique,
+	amount int not null,
+	frequency status_sub not null,
+	created_at Date not null,
+	updated_at Date not null
+);
+
+create type status_rec as enum('daily' , 'weekly' , 'monthly' , 'yearly');
+
+create table auth.recurring(
+	rule_id int primary key generated always as identity,
+	subscription_id int,
+	foreign key (subscription_id) references auth.Sub (subscription_id),
+	frequency status_rec not null,
+	next_execution date not null
+);
+
+create table auth.cur(
+	currency_code int primary key generated always as identity,
+	updated_at Date not null
+);
+
+create type status_fee as enum ('transaction' , 'refund' , 'withdrawal');
+
+create table auth.fees(
+	fee_id int primary key generated always as identity,
+	fee_type status_fee not null,
+	amount int not null,
+	currency_code int,
+	foreign key (currency_code) references auth.cur(currency_code)
+);
+
+create type status_sett as enum ('pending' , 'completed');
+
+create table auth.sett(
+	settlement_id int primary key generated always as identity,
+	user_id int,
+	foreign key (user_id) references auth.user_table(user_id),
+	amount int not null,
+	currency_code int,
+	foreign key (currency_code) references auth.cur(currency_code),
+	status status_sett not null,
+	created_at date not null
+);
+
+create type status_ref as enum ('initiated' , 'completed' , 'failed');
+
+create table auth.ref(
+	refund_id int primary key generated always as identity,
+	transaction_id int,
+	foreign key (transaction_id) references auth.transac(transaction_id),
+	amount int not null,
+	reason varchar(150) not null,
+	status status_ref not null,
+	created_at date not null
+);
+
+create type status_not as enum ('unread' , 'read');
+
+create table auth.not(
+	notification_id int primary key generated always as identity,
+	user_id int,
+	foreign key (user_id) references auth.user_table(user_id),
+	message varchar(150) not null,
+	status status_not not null,
+	created_at date
+);
+
+create table auth.pref(
+	preference_id int primary key generated always as identity,
+	user_id int,
+	foreign key (user_id) references auth.user_table(user_id),
+	notify_by_email boolean default true,
+	notify_by_sms boolean default false,
+	notify_by_push boolean default true
+);
+
+create table auth.config(
+	config_id int primary key generated always as identity,
+	config_key varchar(100) unique,
+	config_value varchar(100) not null
+);
+
+create table auth.feat (
+	feature_id int primary key generated always as identity,
+	feature_name varchar(100) unique not null,
+	is_enabled boolean
+);
+
+create table auth.audit(
+	log_id int primary key generated always as identity,
+	user_id int,
+	foreign key (user_id) references auth.user_table(user_id),
+	action varchar(100) not null,
+	detailts JSONB not null,
+	created_at Date
+);
+
+create table auth.fraud(
+	fraud_log_id int primary key generated always as identity,
+	transaction_id int,
+	foreign key (transaction_id) references auth.transac(transaction_id),
+	reason varchar(100) not null,
+	reviewed boolean,
+	created_at date
+);
+
+create table auth.metrics(
+	metric_id int primary key generated always as identity,
+	transaction_id int,
+	foreign key (transaction_id) references auth.transac(transaction_id),
+	proccesing_time interval,
+	success_rate float
+);
+
+create table auth.usract(
+	activity_id int primary key generated always as identity,
+	user_id int,
+	foreign key (user_id) references auth.user_table(user_id),
+	action varchar(100) not null,
+	timestamp date
+);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
