@@ -1,235 +1,241 @@
-create schema auth;
 
-create type status as enum ('customer' , 'merchant');
+CREATE TYPE status_user AS ENUM ('customer', 'admin');
+CREATE TYPE status_booking AS ENUM ('pending', 'confirmed', 'failed');
 
-create table auth.user_table(
-	user_id int primary key generated always as identity,
-	name varchar(100),
-	email varchar(100) unique,
-	password_hash varchar(100) ,
-	phone_number int unique,
-	role status not null,
-	created_at Date ,
-	updateed_at Date
+CREATE TABLE user_table (
+    user_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    name VARCHAR(150) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(100) NOT NULL,
+    role status_user DEFAULT 'customer',
+    phone VARCHAR(15) NULL
 );
 
-create table auth.Roles(
-	role_id int Primary key generated always as identity,
-	role_name varchar(100) unique not null
+CREATE TABLE muvies (
+    movie_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    title VARCHAR(255) NOT NULL,
+    description VARCHAR(255) NULL,
+    genre VARCHAR(100) NOT NULL,
+    duration_minutes INT NOT NULL,
+    release_date DATE NOT NULL,
+    rating INT CHECK (rating >= 0 AND rating <= 10),
+    poster_url VARCHAR(100) NULL,
+    created_at DATE NOT NULL
 );
 
-Create table auth.UserRoles(
-	user_role_id int Primary key generated always as identity,
-	user_id int ,
-	role_id int,
-	foreign key (user_id) references auth.user_table(user_id),
-	foreign key (role_id) references auth.Roles(role_id)
+CREATE TABLE cinema (
+    cinema_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    name VARCHAR(100) NOT NULL,
+    location VARCHAR(255) NOT NULL,
+    created_at DATE DEFAULT NOW()
 );
 
-create type pay_status as enum('card' , 'wallet' , 'crypto' , 'bank_transfer');
-
-Create table auth.pay(
-	payment_method_id int primary key generated always as identity,
-	user_id int,
-	foreign key (user_id) references auth.user_table(user_id),
-	type pay_status not null,
-	created_at Date,
-	updated_at Date,
-	detailts JSONB not null
+CREATE TABLE screen (
+    screen_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    cinema_id INT,
+    FOREIGN KEY (cinema_id) REFERENCES cinema(cinema_id),
+    name VARCHAR(100) NOT NULL,
+    capacity INT NOT NULL -- changed to INT
 );
 
-create type trans_status as enum('pending' , 'completed' , 'failed' , 'refunded');
-
-create table auth.transac(
-	transaction_id int primary key generated always as identity,
-	user_id int,
-	foreign key (user_id) references auth.user_table(user_id),
-	amount int not null,
-	currency int check (currency between 100 and 999),
-	status trans_status not null,
-	payment_method_id int,
-	foreign key (payment_method_id) references auth.pay(payment_method_id),
-	description varchar(150) not null,
-	created_at Date,
-	updated_at Date
+CREATE TABLE seats (
+    seat_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    screen_id INT,
+    FOREIGN KEY (screen_id) REFERENCES screen(screen_id),
+    seat_number VARCHAR(10) NOT NULL,
+    seat_type VARCHAR(100) NOT NULL
 );
 
-create type invoice_status as enum ('paid' , 'unpaid' , 'overdue');
-
-create table auth.Invoices(
-	invoice_id int primary key generated always as identity,
-	transaction_id int,
-	foreign key (transaction_id) references auth.transac(transaction_id),
-	business_id int,
-	foreign key (business_id) references auth.user_table(user_id ),
-	customer_id int,
-	foreign key (customer_id) references auth.user_table(user_id),
-	amount_due int not null,
-	due_date Date not null, 
-	status invoice_status not null,
-	created_at Date not null,
-	updated_at Date not null
+CREATE TABLE showtime (
+    showtime_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    screen_id INT,
+    FOREIGN KEY (screen_id) REFERENCES screen(screen_id),
+    movie_id INT,
+    FOREIGN KEY (movie_id) REFERENCES muvies(movie_id),
+    start_time TIMESTAMP NOT NULL,
+    end_time TIMESTAMP NOT NULL,
+    price INT NOT NULL
 );
 
-create type status_sub as enum ('daily' , 'weekly' , 'monthly' , 'yearly');
-
-Create table auth.Sub (
-	subscription_id int primary key generated always as identity,
-	user_id int,
-	foreign key (user_id) references auth.user_table(user_id),
-	plan_name varchar(100) not null unique,
-	amount int not null,
-	frequency status_sub not null,
-	created_at Date not null,
-	updated_at Date not null
+CREATE TABLE book (
+    booking_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    user_id INT,
+    FOREIGN KEY (user_id) REFERENCES user_table(user_id),
+    showtime_id INT,
+    FOREIGN KEY (showtime_id) REFERENCES showtime(showtime_id),
+    booking_date DATE DEFAULT NOW(),
+    total_price INT NOT NULL,
+    status status_booking DEFAULT 'pending'
 );
 
-create type status_rec as enum('daily' , 'weekly' , 'monthly' , 'yearly');
-
-create table auth.recurring(
-	rule_id int primary key generated always as identity,
-	subscription_id int,
-	foreign key (subscription_id) references auth.Sub (subscription_id),
-	frequency status_rec not null,
-	next_execution date not null
+CREATE TABLE book_details (
+    booking_detail_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    booking_id INT,
+    FOREIGN KEY (booking_id) REFERENCES book(booking_id),
+    seat_id INT,
+    FOREIGN KEY (seat_id) REFERENCES seats(seat_id),
+    price INT NOT NULL
 );
 
-create table auth.cur(
-	currency_code int primary key generated always as identity,
-	updated_at Date not null
+CREATE TABLE pay (
+    payment_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    booking_id INT,
+    FOREIGN KEY (booking_id) REFERENCES book(booking_id),
+    payment_date DATE DEFAULT NOW(),
+    amount INT NOT NULL,
+    payment_method VARCHAR(50) NOT NULL,
+    status status_booking DEFAULT 'pending'
 );
 
-create type status_fee as enum ('transaction' , 'refund' , 'withdrawal');
+INSERT INTO user_table (name, email, password, role, phone) 
+VALUES 
+    ('John Doe', 'john.doe@example.com', 'hashed_password1', 'customer', '123456789'),
+    ('Admin User', 'admin@example.com', 'hashed_password2', 'admin', NULL),
+    ('Jane Smith', 'jane.smith@example.com', 'hashed_password3', 'customer', '987654321');
 
-create table auth.fees(
-	fee_id int primary key generated always as identity,
-	fee_type status_fee not null,
-	amount int not null,
-	currency_code int,
-	foreign key (currency_code) references auth.cur(currency_code)
-);
+INSERT INTO muvies (title, description, genre, duration_minutes, release_date, rating, poster_url, created_at) 
+VALUES 
+    ('Inception', 'A mind-bending thriller', 'Sci-Fi', 148, '2010-07-16', 9, 'https://poster.url/inception.jpg', '2023-12-01'),
+    ('Interstellar', 'Exploration beyond our solar system', 'Sci-Fi', 169, '2014-11-07', 10, 'https://poster.url/interstellar.jpg', '2023-12-01'),
+    ('The Dark Knight', 'The caped crusader fights crime', 'Action', 152, '2008-07-18', 9, 'https://poster.url/darkknight.jpg', '2023-12-01');
 
-create type status_sett as enum ('pending' , 'completed');
+INSERT INTO cinema (name, location, created_at) 
+VALUES 
+    ('City Mall Cinema', '123 Main St, City', NOW()),
+    ('Downtown Cinema', '456 Elm St, Downtown', NOW()),
+    ('Uptown Theatre', '789 Maple Ave, Uptown', NOW());
 
-create table auth.sett(
-	settlement_id int primary key generated always as identity,
-	user_id int,
-	foreign key (user_id) references auth.user_table(user_id),
-	amount int not null,
-	currency_code int,
-	foreign key (currency_code) references auth.cur(currency_code),
-	status status_sett not null,
-	created_at date not null
-);
+INSERT INTO screen (cinema_id, name, capacity) 
+VALUES 
+    (1, 'Screen 1', 150),
+    (1, 'Screen 2', 200),
+    (2, 'IMAX', 300),
+    (3, 'Screen A', 100);
 
-create type status_ref as enum ('initiated' , 'completed' , 'failed');
+INSERT INTO seats (screen_id, seat_number, seat_type) 
+VALUES 
+    (1, 'A1', 'Regular'),
+    (1, 'A2', 'Regular'),
+    (1, 'B1', 'VIP'),
+    (2, 'C1', 'Premium'),
+    (2, 'C2', 'Regular'),
+    (3, 'D1', 'Regular');
 
-create table auth.ref(
-	refund_id int primary key generated always as identity,
-	transaction_id int,
-	foreign key (transaction_id) references auth.transac(transaction_id),
-	amount int not null,
-	reason varchar(150) not null,
-	status status_ref not null,
-	created_at date not null
-);
+INSERT INTO showtime (screen_id, movie_id, start_time, end_time, price) 
+VALUES 
+    (1, 1, '2023-12-22 14:00:00', '2023-12-22 16:30:00', 15),
+    (2, 2, '2023-12-22 18:00:00', '2023-12-22 21:00:00', 20),
+    (3, 3, '2023-12-23 12:00:00', '2023-12-23 14:30:00', 12);
 
-create type status_not as enum ('unread' , 'read');
+INSERT INTO book (user_id, showtime_id, total_price, status) 
+VALUES 
+    (1, 1, 45, 'confirmed'),
+    (2, 2, 20, 'pending'),
+    (3, 3, 36, 'failed');
 
-create table auth.not(
-	notification_id int primary key generated always as identity,
-	user_id int,
-	foreign key (user_id) references auth.user_table(user_id),
-	message varchar(150) not null,
-	status status_not not null,
-	created_at date
-);
+INSERT INTO book_details (booking_id, seat_id, price) 
+VALUES 
+    (1, 1, 15),
+    (1, 2, 15),
+    (1, 3, 15),
+    (2, 4, 20),
+    (3, 5, 12),
+    (3, 6, 12);
 
-create table auth.pref(
-	preference_id int primary key generated always as identity,
-	user_id int,
-	foreign key (user_id) references auth.user_table(user_id),
-	notify_by_email boolean default true,
-	notify_by_sms boolean default false,
-	notify_by_push boolean default true
-);
+INSERT INTO pay (booking_id, payment_date, amount, payment_method, status) 
+VALUES 
+    (1, NOW(), 45, 'Credit Card', 'confirmed'),
+    (2, NOW(), 20, 'PayPal', 'pending'),
+    (3, NOW(), 36, 'Debit Card', 'failed');
 
-create table auth.config(
-	config_id int primary key generated always as identity,
-	config_key varchar(100) unique,
-	config_value varchar(100) not null
-);
+--operators
 
-create table auth.feat (
-	feature_id int primary key generated always as identity,
-	feature_name varchar(100) unique not null,
-	is_enabled boolean
-);
+select * from user_table
+where user_id = 100 and (role='customer' or role = 'admin');
 
-create table auth.audit(
-	log_id int primary key generated always as identity,
-	user_id int,
-	foreign key (user_id) references auth.user_table(user_id),
-	action varchar(100) not null,
-	detailts JSONB not null,
-	created_at Date
-);
+select * from muvies 
+where rating between 7 and 9;
 
-create table auth.fraud(
-	fraud_log_id int primary key generated always as identity,
-	transaction_id int,
-	foreign key (transaction_id) references auth.transac(transaction_id),
-	reason varchar(100) not null,
-	reviewed boolean,
-	created_at date
-);
+select * from book 
+where total_price>=50 and status != 'failed';
 
-create table auth.metrics(
-	metric_id int primary key generated always as identity,
-	transaction_id int,
-	foreign key (transaction_id) references auth.transac(transaction_id),
-	proccesing_time interval,
-	success_rate float
-);
+select * from pay 
+where amount >= 100 or payment_method = 'Credit Card';
 
-create table auth.usract(
-	activity_id int primary key generated always as identity,
-	user_id int,
-	foreign key (user_id) references auth.user_table(user_id),
-	action varchar(100) not null,
-	timestamp date
-);
+--where
 
+select * from user_table
+where email like '%example.com';
 
+select * from muvies
+where rating >=8;
 
+select * from book 
+where user_id = 3;
 
+select * from book 
+where user_id = 5;
 
+-- distinct
 
+select distinct genre from muvies; 
 
+select distinct location from cinema;
 
+select distinct status from book;
 
+select distinct start_time from showtime;
 
+--order by
 
+select * from muvies 
+order by release_date asc;
 
+select * from book 
+order by total_price desc;
 
+select * from pay 
+order by payment_date desc;
 
+--Like
 
+select * from user_table
+where name Like 'A%';
 
+select * from muvies
+where title Like '%Love%';
 
+select * from book
+WHERE booking_date LIKE '2024-%';
 
+select name from cinema 
+where name Like 'Theater%';
 
+--aliases
 
+select user_id as "UserID" from user_table; 
 
+select name as "FullName" from user_table;
 
+select email as "Email Address" from user_table;
 
+select title as "Muvie title" from muvies; 
 
+select release_date as "Release Date" from muvies;
 
+select rating as "Viewer Rating" from muvies;
 
+select booking_date as "Booking Date" from book; 
 
+select status as "Booking Status" from book;
 
+select total_price as "Amount Paid" from book;
 
+select start_time as "Show Satrt Time" from showtime;
 
+select price as "Ticked Price" from showtime;
 
+select screen_id as "Screen ID" from showtime;
 
 
 
